@@ -14,7 +14,11 @@ package and a GitHub release.
    A `404`/`E404` means the name is unclaimed. A version number means it is
    taken; stop and choose a scoped name instead.
 
-2. **Create an npm automation token** with publish access to the package. Do not
+2. **Create an npm granular access token** with publish access to the package.
+   Select `Read and write (publish and stage)`, limit it to this package, and
+   enable **Bypass two-factor authentication** so the tag workflow can publish
+   without an interactive prompt. Without the bypass, npm may stage the release
+   instead of publishing it (see [Staged publishes](#staged-publishes)). Do not
    use a password or a token with broader access than necessary.
 
 3. **Add the token to GitHub** as the repository secret `NPM_TOKEN`
@@ -28,6 +32,25 @@ package and a GitHub release.
 
 5. **Confirm the legal files** are current: `LICENSE`, `THIRD_PARTY_NOTICES.md`,
    and the clause-3 acknowledgement.
+
+## Staged publishes
+
+If the `Publish` step succeeds but `npm view opencode-bale-bot version` still
+shows `0.0.0-stage`, the release was staged instead of published. For a new
+package, npm publishes a public `0.0.0-stage` placeholder and keeps the real
+version private until a maintainer approves it with 2FA.
+
+Approve it on npmjs.com under **Staged Packages**, or from the CLI:
+
+```bash
+npm login
+npx npm@latest stage list opencode-bale-bot
+npx npm@latest stage approve <stage-id>
+```
+
+After approval, confirm `latest` points at the released version. The
+`0.0.0-stage` placeholder stays in the version list; it is harmless and is not
+installed by `npm install opencode-bale-bot`.
 
 ## Versioning
 
