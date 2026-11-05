@@ -1,0 +1,157 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node:
+          - "22.13"
+          - "22.x"
+          - "24.x"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Tarball contents
+        run: npm run pack:check
+
+      - name: No source maps in the published build
+        run: |
+          if find dist -name '*.map' -print -quit | grep -q .; then
+            echo "dist contains source maps" >&2
+            exit 1
+          fi
+
+      - name: Pack and install from the tarball
+        run: |
+          set -euo pipefail
+          TARBALL=$(npm pack --silent)
+          PREFIX="$RUNNER_TEMP/prefix"
+          npm install --global --prefix "$PREFIX" "./$TARBALL"
+          "$PREFIX/bin/opencode-bale-bot" --version
+          "$PREFIX/bin/opencode-bale-bot" --help > /dev/null
+          rm -f "$TARBALL"
+
+  node-gate:
+    name: Old Node exits 78
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Verify the preflight gate
+        run: |
+          set +e
+          output=$(node bin/opencode-bale-bot.js --version 2>&1)
+          status=$?
+          set -e
+          echo "$output"
+          if [ "$status" -ne 78 ]; then
+            echo "expected exit 78 on Node $(node --version), got $status" >&2
+            exit 1
+          fi
+          case "$output" in
+            *"Node.js"*) ;;
+            *) echo "the gate should explain the Node.js requirement" >&2; exit 1 ;;
+          esac
+
+  hygiene:
+    name: Repository hygiene
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: User-home paths use placeholders
+        run: |
+          set -euo pipefail
+          # Examples must use a placeholder such as /home/you or /Users/user.
+          # Exclude this workflow: it contains the patterns by definition.
+          matches=$(git grep -nE '/(home|Users)/[A-Za-z0-9._-]+/' -- . \
+            ':!node_modules' ':!package-lock.json' ':!.github/workflows/ci.yml' || true)
+          bad=$(printf '%s\n' "$matches" \
+            | grep -vE '/(home|Users)/(you|your|user|username|me|a|example|name)/' || true)
+          if [ -n "$bad" ]; then
+            printf '%s\n' "$bad"
+            echo "user-home path does not use a placeholder username" >&2
+            exit 1
+          fi
+
+      - name: No committed secrets
+        run: |
+          set -euo pipefail
+          if git ls-files | grep -E '(^|/)\.env$|(^|/)\.bale-token$'; then
+            echo "a secret file is tracked" >&2
+            exit 1
+          fi
+
+      - name: Required public files exist
+        run: |
+          set -euo pipefail
+          for file in LICENSE THIRD_PARTY_NOTICES.md README.md SECURITY.md CONTRIBUTING.md; do
+            test -f "$file" || { echo "missing $file" >&2; exit 1; }
+          done
+
+      - name: Documentation links and coverage
+        run: npm run docs:check
+
+  supply-chain:
+    name: Dependency audit and licenses
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev
+
+      - name: Check production dependency licenses
+        run: npm run licenses:check

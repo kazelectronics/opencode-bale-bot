@@ -1,0 +1,16 @@
+node_modules/
+dist/
+data/
+*.log
+*.tgz
+.DS_Store
+
+# Private notes, archives, and scratch work (never commit)
+.local/
+
+.env
+.env.*
+!.env.example
+
+# Secrets
+.bale-token

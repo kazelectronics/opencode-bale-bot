@@ -1,0 +1,66 @@
+{
+  "name": "opencode-bale-bot",
+  "version": "0.1.0",
+  "description": "Bale Messenger bridge for a local OpenCode V2 server",
+  "type": "module",
+  "license": "MIT",
+  "author": "Kazimali Khaki",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kazelectronics/opencode-bale-bot.git"
+  },
+  "homepage": "https://github.com/kazelectronics/opencode-bale-bot#readme",
+  "bugs": {
+    "url": "https://github.com/kazelectronics/opencode-bale-bot/issues"
+  },
+  "keywords": [
+    "bale",
+    "bale-messenger",
+    "opencode",
+    "bot",
+    "bridge",
+    "cli",
+    "typescript"
+  ],
+  "engines": {
+    "node": ">=22.13"
+  },
+  "bin": {
+    "opencode-bale-bot": "bin/opencode-bale-bot.js"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "LICENSE",
+    "README.md",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "build": "npm run clean && tsc -p tsconfig.build.json",
+    "start": "node --disable-warning=ExperimentalWarning dist/cli.js start",
+    "dev": "tsx watch src/cli.ts start",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "node scripts/e2e.mjs",
+    "docs:check": "node scripts/check-docs.mjs",
+    "licenses:check": "node scripts/check-licenses.mjs",
+    "verify": "npm run typecheck && npm test && npm run build && npm run pack:check && npm run docs:check && npm run licenses:check && npm run test:e2e",
+    "pack:check": "node scripts/check-pack.mjs",
+    "prepack": "npm run build && npm run pack:check",
+    "prepublishOnly": "npm run typecheck && npm test && npm run docs:check"
+  },
+  "dependencies": {
+    "@erfanvahabpour/bale-bot-sdk": "^1.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.7"
+  }
+}
