@@ -32,7 +32,9 @@ package and a GitHub release.
 ## Versioning
 
 - Use semantic versioning. `0.x` releases may still change configuration.
-- Update `CHANGELOG.md` with the release's user-facing changes.
+- Update `CHANGELOG.md` with the release's user-facing changes. The `Release`
+  workflow copies the section whose heading is `## <version>` into the GitHub
+  release body.
 - Update `package.json` `version`. The git tag must match exactly, without the
   leading `v` in `package.json`.
 
